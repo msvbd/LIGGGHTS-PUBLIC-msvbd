@@ -267,6 +267,8 @@ class FixWallGran : public Fix, public LIGGGHTS::IContactHistorySetup {
   class FixPropertyAtom *fppa_T;
   class FixPropertyAtom *fppa_hf;
   class FixPropertyAtom *fppa_htcw; 
+  const double *area_correction_flag;
+  const double *time_correction_flag;
 
   double Temp_wall;
   double fixed_contact_area_;

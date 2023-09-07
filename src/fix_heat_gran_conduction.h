@@ -96,6 +96,7 @@ namespace LAMMPS_NS {
 
     // for heat transfer area correction
     int area_correction_flag_;
+    int time_correction_flag_;
     double const* const* deltan_ratio_;
   };
 

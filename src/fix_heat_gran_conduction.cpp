@@ -62,7 +62,8 @@ using namespace FixConst;
 
 enum{ CONDUCTION_CONTACT_AREA_OVERLAP,
       CONDUCTION_CONTACT_AREA_CONSTANT,
-      CONDUCTION_CONTACT_AREA_PROJECTION};
+      CONDUCTION_CONTACT_AREA_PROJECTION,
+      CONDUCTION_CONTACT_AREA_HERTZ};
 
 /* ---------------------------------------------------------------------- */
 
@@ -82,6 +83,7 @@ FixHeatGranCond::FixHeatGranCond(class LAMMPS *lmp, int narg, char **arg) :
   area_calculation_mode_(CONDUCTION_CONTACT_AREA_OVERLAP),
   fixed_contact_area_(0.),
   area_correction_flag_(0),
+  time_correction_flag_(0),
   deltan_ratio_(0)
 {
   iarg_ = 5;
@@ -94,6 +96,8 @@ FixHeatGranCond::FixHeatGranCond(class LAMMPS *lmp, int narg, char **arg) :
 
       if(strcmp(arg[iarg_+1],"overlap") == 0)
         area_calculation_mode_ =  CONDUCTION_CONTACT_AREA_OVERLAP;
+      else if(strcmp(arg[iarg_+1],"hertz") == 0)
+        area_calculation_mode_ =  CONDUCTION_CONTACT_AREA_HERTZ;
       else if(strcmp(arg[iarg_+1],"projection") == 0)
         area_calculation_mode_ =  CONDUCTION_CONTACT_AREA_PROJECTION;
       else if(strcmp(arg[iarg_+1],"constant") == 0)
@@ -118,6 +122,15 @@ FixHeatGranCond::FixHeatGranCond(class LAMMPS *lmp, int narg, char **arg) :
       else error->fix_error(FLERR,this,"expecting 'yes' or 'no' after 'area_correction'");
       iarg_ += 2;
       hasargs = true;
+    } else if(strcmp(arg[iarg_],"time_correction") == 0) {
+      if (iarg_+2 > narg) error->fix_error(FLERR,this,"not enough arguments for keyword 'time_correction'");
+      if(strcmp(arg[iarg_+1],"yes") == 0)
+        time_correction_flag_ = 1;
+      else if(strcmp(arg[iarg_+1],"no") == 0)
+        time_correction_flag_ = 0;
+      else error->fix_error(FLERR,this,"expecting 'yes' or 'no' after 'time_correction'");
+      iarg_ += 2;
+      hasargs = true;
     } else if(strcmp(arg[iarg_],"store_contact_data") == 0) {
       if (iarg_+2 > narg) error->fix_error(FLERR,this,"not enough arguments for keyword 'store_contact_data'");
       if(strcmp(arg[iarg_+1],"yes") == 0)
@@ -131,8 +144,8 @@ FixHeatGranCond::FixHeatGranCond(class LAMMPS *lmp, int narg, char **arg) :
         error->fix_error(FLERR,this,"unknown keyword");
   }
 
-  if(CONDUCTION_CONTACT_AREA_OVERLAP != area_calculation_mode_ && 1 == area_correction_flag_)
-    error->fix_error(FLERR,this,"can use 'area_correction' only for 'contact_area = overlap'");
+  if(CONDUCTION_CONTACT_AREA_OVERLAP != area_calculation_mode_ && CONDUCTION_CONTACT_AREA_HERTZ != area_calculation_mode_ && 1 == area_correction_flag_)
+    error->fix_error(FLERR,this,"can use 'area_correction' only for 'contact_area = overlap OR hertz'");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -349,6 +362,11 @@ void FixHeatGranCond::post_force(int vflag)
     post_force_eval<0,CONDUCTION_CONTACT_AREA_PROJECTION>(vflag,0);
   if(history_flag == 1 && CONDUCTION_CONTACT_AREA_PROJECTION == area_calculation_mode_)
     post_force_eval<1,CONDUCTION_CONTACT_AREA_PROJECTION>(vflag,0);
+
+  if(history_flag == 0 && CONDUCTION_CONTACT_AREA_HERTZ == area_calculation_mode_)
+    post_force_eval<0,CONDUCTION_CONTACT_AREA_HERTZ>(vflag,0);
+  if(history_flag == 1 && CONDUCTION_CONTACT_AREA_HERTZ == area_calculation_mode_)
+    post_force_eval<1,CONDUCTION_CONTACT_AREA_HERTZ>(vflag,0);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -371,6 +389,11 @@ void FixHeatGranCond::cpl_evaluate(ComputePairGranLocal *caller)
     post_force_eval<0,CONDUCTION_CONTACT_AREA_PROJECTION>(0,1);
   if(history_flag == 1 && CONDUCTION_CONTACT_AREA_PROJECTION == area_calculation_mode_)
     post_force_eval<1,CONDUCTION_CONTACT_AREA_PROJECTION>(0,1);
+
+  if(history_flag == 0 && CONDUCTION_CONTACT_AREA_HERTZ == area_calculation_mode_)
+    post_force_eval<0,CONDUCTION_CONTACT_AREA_HERTZ>(0,1);
+  if(history_flag == 1 && CONDUCTION_CONTACT_AREA_HERTZ == area_calculation_mode_)
+    post_force_eval<1,CONDUCTION_CONTACT_AREA_HERTZ>(0,1);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -384,6 +407,8 @@ void FixHeatGranCond::post_force_eval(int vflag,int cpl_flag)
   double radi,radj,radsum,rsq,r,tcoi,tcoj;
   int *ilist,*jlist,*numneigh,**firstneigh;
   int *contact_flag,**first_contact_flag;
+
+  double timeCorr = 1; // MS - time correction
 
   int newton_pair = force->newton_pair;
 
@@ -462,6 +487,11 @@ void FixHeatGranCond::post_force_eval(int vflag,int cpl_flag)
               delta_n = radsum - r;
               delta_n *= deltan_ratio_[type[i]-1][type[j]-1];
               r = radsum - delta_n;
+
+            }
+            if(time_correction_flag_)
+            {
+              timeCorr = pow(deltan_ratio_[type[i]-1][type[j]-1], 2.0/5.0); // MS - time correction
             }
 
             if (r < fmax(radi, radj)) // one sphere is inside the other
@@ -470,9 +500,54 @@ void FixHeatGranCond::post_force_eval(int vflag,int cpl_flag)
                 contactArea = fmin(radi,radj);
                 contactArea *= contactArea * M_PI;
             }
-            else
+            else { 
                 //contact area of the two spheres
                 contactArea = - M_PI/4.0 * ( (r-radi-radj)*(r+radi-radj)*(r-radi+radj)*(r+radi+radj) )/(r*r);
+            }
+            // contactArea /= 2.0*M_PI;
+        }
+        else if(CONTACTAREA == CONDUCTION_CONTACT_AREA_HERTZ)
+        {
+
+            if(area_correction_flag_)
+            {
+               timeCorr *= pow(deltan_ratio_[type[i]-1][type[j]-1], 1.0/2.0); // (Y/y)^(1/3) MS - time correction
+              //  timeCorr *= pow(4.0/3.0, 1.0/3.0); // MS - area correction
+             
+            }
+            if(time_correction_flag_)
+            {
+              timeCorr *= pow(deltan_ratio_[type[i]-1][type[j]-1], 2.0/5.0); // (Y/y)^(4/15) MS - time correction
+              //  timeCorr *= deltan_ratio_[type[i]-1][type[j]-1]; // (Y/y)^(2/3) MS - time correction
+              //  timeCorr *= pow(deltan_ratio_[type[i]-1][type[j]-1], 3.0/8.0); // (Y/y)^(1/4) MS - time correction
+             
+            }
+
+            // if(time_correction_flag_)
+            // {
+              // (Y/Y) ^ (2/3) ^ (1/1) = (2/3)
+               //timeCorr = pow(deltan_ratio_[type[i]-1][type[j]-1], 1.0/1.0); // MS - time correction
+
+              // (Y/Y) ^ (2/3) ^ (3/8) = (Y/Y) ^ (1/4) 
+              // timeCorr = pow(deltan_ratio_[type[i]-1][type[j]-1], 3.0/8.0); // MS - time correction
+              // fprintf(logfile, "deltan_ratio_[type[i]-1][type[j]-1] = %f\n", deltan_ratio_[type[i]-1][type[j]-1]);
+              // fprintf(logfile, "timeCorr = %f\n", timeCorr);
+              // fprintf(logfile, "----------------------------------\n");
+
+              // (Y/Y) ^ (2/3)
+              // timeCorr = deltan_ratio_[type[i]-1][type[j]-1]; // MS - time correction
+            // }
+
+            contactArea = (radi*radj) * (radsum - r) / radsum; // 2.0*M_PI*(radi*radj) * (radsum - r) / radsum;
+
+            // fprintf(logfile, "delta = %.16e, r = %.16e, contactArea = %.16e, reff = %.16e\n", (radsum - r),  r, contactArea, ((radi*radj)/radsum) ); // MS loggingwall
+
+            // if(area_correction_flag_)
+            // {
+            //   contactArea *= deltan_ratio_[type[i]-1][type[j]-1];
+            //   // contactArea *= pow(4.0/3.0, 2.0/3.0);
+            // }
+
         }
         else if (CONTACTAREA == CONDUCTION_CONTACT_AREA_CONSTANT)
             contactArea = fixed_contact_area_;
@@ -484,27 +559,30 @@ void FixHeatGranCond::post_force_eval(int vflag,int cpl_flag)
 
         tcoi = conductivity_[type[i]-1];
         tcoj = conductivity_[type[j]-1];
+        // fprintf(logfile, "tcoi = %f, tcoj = %f\n", tcoi, tcoj);
         if (tcoi < SMALL_FIX_HEAT_GRAN || tcoj < SMALL_FIX_HEAT_GRAN) hc = 0.;
         else hc = 4.*tcoi*tcoj/(tcoi+tcoj)*sqrt(contactArea);
 
-        flux = (Temp[j]-Temp[i])*hc;
+        flux = (Temp[j]-Temp[i])*hc*timeCorr; // MS - time correction
+        // fprintf(logfile, " flux = %.16e, H = %.16e, Temp[j]-Temp[i] = %.16e\n", flux, hc,  Temp[j]-Temp[i]); // MS logging
 
         dirFlux[0] = flux*delx;
         dirFlux[1] = flux*dely;
         dirFlux[2] = flux*delz;
         if(!cpl_flag)
         {
+          // fprintf(logfile, "!cpl_flag\n");
           //Add half of the flux (located at the contact) to each particle in contact
           heatFlux[i] += flux;
           directionalHeatFlux[i][0] += 0.50 * dirFlux[0];
           directionalHeatFlux[i][1] += 0.50 * dirFlux[1];
           directionalHeatFlux[i][2] += 0.50 * dirFlux[2];
 
-          if(store_contact_data_)
-          {
-              conduction_contact_area_[i] += contactArea;
-              n_conduction_contacts_[i] += 1.;
-          }
+          // if(store_contact_data_)
+          // {
+          //     conduction_contact_area_[i] += contactArea;
+          //     n_conduction_contacts_[i] += 1.;
+          // }
           if (newton_pair || j < nlocal)
           {
             heatFlux[j] -= flux;
@@ -512,15 +590,18 @@ void FixHeatGranCond::post_force_eval(int vflag,int cpl_flag)
             directionalHeatFlux[j][1] += 0.50 * dirFlux[1];
             directionalHeatFlux[j][2] += 0.50 * dirFlux[2];
 
-            if(store_contact_data_)
-            {
-                conduction_contact_area_[j] += contactArea;
-                n_conduction_contacts_[j] += 1.;
-            }
+            // if(store_contact_data_)
+            // {
+            //     conduction_contact_area_[j] += contactArea;
+            //     n_conduction_contacts_[j] += 1.;
+            // }
           }
         }
 
-        if(cpl_flag && cpl) cpl->add_heat(i,j,flux);
+        if(cpl_flag && cpl) {
+          cpl->add_heat(i,j,flux);
+          // fprintf(logfile, "cpl_flag && cpl \n");
+        }
       }
     }
   }

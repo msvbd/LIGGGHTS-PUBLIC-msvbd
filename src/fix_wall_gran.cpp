@@ -94,7 +94,8 @@ const double SMALL = 1e-12;
 
   enum{ CONDUCTION_CONTACT_AREA_OVERLAP,
         CONDUCTION_CONTACT_AREA_CONSTANT,
-        CONDUCTION_CONTACT_AREA_PROJECTION};
+        CONDUCTION_CONTACT_AREA_PROJECTION,
+        CONDUCTION_CONTACT_AREA_HERTZ};
 
 /* ---------------------------------------------------------------------- */
 
@@ -1253,6 +1254,8 @@ void FixWallGran::init_heattransfer()
     fppa_hf = NULL;
     fppa_htcw = NULL;
     deltan_ratio = NULL;
+    area_correction_flag = NULL;
+    time_correction_flag = NULL;
 
     // decide if heat transfer is to be calculated
 
@@ -1270,6 +1273,10 @@ void FixWallGran::init_heattransfer()
 
     // heat transfer is to be calculated - continue with initializations
 
+    // correction flags
+    area_correction_flag = static_cast<FixPropertyGlobal*>(modify->find_fix_property("areaCorrectionFlag","property/global","scalar",0,0,style))->get_values();
+    time_correction_flag = static_cast<FixPropertyGlobal*>(modify->find_fix_property("timeCorrectionFlag","property/global","scalar",0,0,style))->get_values();
+
     // set flag so addHeatFlux function is called
     heattransfer_flag_ = true;
 
@@ -1278,6 +1285,7 @@ void FixWallGran::init_heattransfer()
 
     // if(screen && comm->me == 0) fprintf(screen,"Initializing wall/gran heat transfer model\n");
     fppa_T = static_cast<FixPropertyAtom*>(modify->find_fix_property("Temp","property/atom","scalar",1,0,style));
+
     fppa_hf = static_cast<FixPropertyAtom*>(modify->find_fix_property("heatFlux","property/atom","scalar",1,0,style));
     fppa_htcw = static_cast<FixPropertyAtom*>(modify->find_fix_property("wallHeattransferCoeff","property/atom","scalar",1,0,style,false));
 
@@ -1287,6 +1295,8 @@ void FixWallGran::init_heattransfer()
     Fix* ymo_fix = modify->find_fix_property("youngsModulusOriginal","property/global","peratomtype",0,0,style,false);
     // deltan_ratio is defined by heat transfer fix, see if there is one
     int n_htf = modify->n_fixes_style("heat/gran/conduction");
+
+    // fprintf(screen,"n_htf: %f\n",(modify->find_fix_style("heat/gran/conduction",0))->T0);
 
     // get deltan_ratio set by the heat transfer fix
     if(ymo_fix && n_htf) deltan_ratio = static_cast<FixPropertyGlobal*>(ymo_fix)->get_array_modified();
@@ -1343,6 +1353,7 @@ void FixWallGran::addHeatFlux(TriMesh *mesh,int ip, const double ri, double delt
     double tcop, tcowall, hc, Acont=0.0, r;
     double reff_wall = ri;
     int itype = atom->type[ip];
+    double timeCorr = 1.0;
 
     if(mesh)
     {
@@ -1362,9 +1373,22 @@ void FixWallGran::addHeatFlux(TriMesh *mesh,int ip, const double ri, double delt
         if(deltan_ratio)
            delta_n *= deltan_ratio[itype-1][atom_type_wall_-1];
 
-        r = ri - delta_n;
+        if(time_correction_flag[0])
+        {
+          timeCorr = pow(deltan_ratio[itype-1][atom_type_wall_-1], 2.0/5.0); // MS - time correction
+        }
+
+        r = ri - delta_n; 
 
         Acont = (reff_wall*reff_wall-r*r)*M_PI*area_ratio; //contact area sphere-wall
+    }
+    else if(CONDUCTION_CONTACT_AREA_HERTZ == area_calculation_mode_)
+    {
+        // if(area_correction_flag)
+
+        r = ri - delta_n; // overlap
+
+        Acont = reff_wall*r;
     }
     else if (CONDUCTION_CONTACT_AREA_CONSTANT == area_calculation_mode_)
         Acont = fixed_contact_area_;
@@ -1381,7 +1405,7 @@ void FixWallGran::addHeatFlux(TriMesh *mesh,int ip, const double ri, double delt
 
     if(computeflag_)
     {
-        double hf = (Temp_wall-Temp_p[ip]) * hc;
+        double hf = (Temp_wall-Temp_p[ip]) * hc * timeCorr;
         heatflux[ip] += hf;
         Q_add += hf * update->dt;
         
