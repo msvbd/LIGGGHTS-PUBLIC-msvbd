@@ -109,6 +109,10 @@ FixWallGran::FixWallGran(LAMMPS *lmp, int narg, char **arg) :
     if (strncmp(style,"wall/gran",9) == 0 && (!atom->radius_flag || !atom->omega_flag || !atom->torque_flag))
         error->fix_error(FLERR,this,"requires atom attributes radius, omega, torque");
 
+    // correction flags
+    area_correction_flag_ = false;
+    time_correction_flag_ = false;
+
     // defaults
     store_force_ = false;
     store_force_contact_ = false;
@@ -337,6 +341,13 @@ FixWallGran::FixWallGran(LAMMPS *lmp, int narg, char **arg) :
             Temp_wall = force->numeric(FLERR,arg[iarg_+1]);
             hasargs = true;
             iarg_ += 2;
+        } else if(strcmp(arg[iarg_],"area_correction") == 0) {
+          if(strcmp(arg[iarg_+1],"yes") == 0)
+            area_correction_flag_ = true;
+        } else if(strcmp(arg[iarg_],"time_correction") == 0) {
+          if(strcmp(arg[iarg_+1],"yes") == 0)
+            area_correction_flag_ = true;
+
         } else if(strcmp(arg[iarg_],"contact_area") == 0) {
 
           if(strcmp(arg[iarg_+1],"overlap") == 0)
@@ -1254,8 +1265,6 @@ void FixWallGran::init_heattransfer()
     fppa_hf = NULL;
     fppa_htcw = NULL;
     deltan_ratio = NULL;
-    area_correction_flag = NULL;
-    time_correction_flag = NULL;
 
     // decide if heat transfer is to be calculated
 
@@ -1272,11 +1281,6 @@ void FixWallGran::init_heattransfer()
     }
 
     // heat transfer is to be calculated - continue with initializations
-
-    // correction flags
-    area_correction_flag = static_cast<FixPropertyGlobal*>(modify->find_fix_property("areaCorrectionFlag","property/global","scalar",0,0,style))->get_values();
-    time_correction_flag = static_cast<FixPropertyGlobal*>(modify->find_fix_property("timeCorrectionFlag","property/global","scalar",0,0,style))->get_values();
-
     // set flag so addHeatFlux function is called
     heattransfer_flag_ = true;
 
@@ -1373,7 +1377,7 @@ void FixWallGran::addHeatFlux(TriMesh *mesh,int ip, const double ri, double delt
         if(deltan_ratio)
            delta_n *= deltan_ratio[itype-1][atom_type_wall_-1];
 
-        if(time_correction_flag[0])
+        if(time_correction_flag_)
         {
           timeCorr = pow(deltan_ratio[itype-1][atom_type_wall_-1], 2.0/5.0); // MS - time correction
         }

@@ -242,6 +242,10 @@ class FixWallGran : public Fix, public LIGGGHTS::IContactHistorySetup {
   // model for contact area calculation
   int area_calculation_mode_;
 
+  // correction flags
+  bool area_correction_flag_;
+  bool time_correction_flag_;
+
   // mesh and primitive force implementations
   virtual void post_force_mesh(int);
   virtual void post_force_primitive(int);
@@ -267,8 +271,6 @@ class FixWallGran : public Fix, public LIGGGHTS::IContactHistorySetup {
   class FixPropertyAtom *fppa_T;
   class FixPropertyAtom *fppa_hf;
   class FixPropertyAtom *fppa_htcw; 
-  const double *area_correction_flag;
-  const double *time_correction_flag;
 
   double Temp_wall;
   double fixed_contact_area_;
