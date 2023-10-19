@@ -342,26 +342,22 @@ FixWallGran::FixWallGran(LAMMPS *lmp, int narg, char **arg) :
             hasargs = true;
             iarg_ += 2;
         } else if(strcmp(arg[iarg_],"area_correction") == 0) {
-          if (iarg_+2 > narg) error->fix_error(FLERR,this,"not enough arguments for keyword 'area_correction'");
-          if(strcmp(arg[iarg_+1],"yes") == 0) {
+          if (iarg_+1 >= narg)
+            error->fix_error(FLERR,this,"not enough arguments for 'area_correction'");
+
+          if(strcmp(arg[iarg_+1],"yes") == 0)
             area_correction_flag_ = true;
-            fprintf(logfile,"area_correction_flag_ is on\n");
-          }
-          else if(strcmp(arg[iarg_+1],"no") == 0)
-            area_correction_flag_ = false;
-          else error->fix_error(FLERR,this,"expecting 'yes' or 'no' after 'area_correction'");
+          
           iarg_ += 2;
           hasargs = true;
 
         } else if(strcmp(arg[iarg_],"time_correction") == 0) {
-          if (iarg_+2 > narg) error->fix_error(FLERR,this,"not enough arguments for keyword 'time_correction'");
-          if(strcmp(arg[iarg_+1],"yes") == 0) {
+          if (iarg_+1 >= narg)
+            error->fix_error(FLERR,this,"not enough arguments for 'time_correction'");
+
+          if(strcmp(arg[iarg_+1],"yes") == 0)
             time_correction_flag_ = true;
-            fprintf(logfile,"time_correction_flag_ is on\n");
-          }
-          else if(strcmp(arg[iarg_+1],"no") == 0)
-            time_correction_flag_ = false;
-          else error->fix_error(FLERR,this,"expecting 'yes' or 'no' after 'time_correction'");
+          
           iarg_ += 2;
           hasargs = true;
 
