@@ -81,7 +81,7 @@ namespace ContactModels
       dissipation_history_offset_(-1),
       cmb(c)
     {
-      
+
     }
 
     void registerSettings(Settings & settings)
@@ -208,7 +208,7 @@ namespace ContactModels
       const int jtype = sidata.jtype;
       const double radi = sidata.radi;
       const double radj = sidata.radj;
-      double reff = sidata.is_wall ? radi : (radi*radj/(radi+radj));
+      double reff = sidata.is_wall ? radi : (radi*radj/(radi+radj)); 
 
       #ifdef SUPERQUADRIC_ACTIVE_FLAG
       if(sidata.is_non_spherical && atom->superquadric_flag)
@@ -227,7 +227,7 @@ namespace ContactModels
       if (disable_when_bonded_ && update_history && sidata.deltan < sidata.contact_history[overlap_offset_])
         sidata.contact_history[overlap_offset_] = sidata.deltan;
       const double deltan = disable_when_bonded_ ? fmax(sidata.deltan-sidata.contact_history[overlap_offset_], 0.0) : sidata.deltan;
-
+      double a_s = sqrt(2*reff*deltan);   // a_s dopočítáno
       const double Sn=2.*Yeff[itype][jtype]*sqrtval;
       const double St=8.*Geff[itype][jtype]*sqrtval;
 
@@ -252,10 +252,10 @@ namespace ContactModels
 
       const double Fn_damping = -gamman*sidata.vn;
       const double Fn_contact = kn*deltan;
-      double Fn = Fn_damping + Fn_contact;
+       double Fn =(1.125 *2*M_PI*radj*gamman)-(sidata.vn * M_PI* pow(a_s,4) / 8 / reff);
 
-      //limit force to avoid the artefact of negative repulsion force
-      if(limitForce && (Fn<0.0) )
+       //limit force to avoid the artefact of negative repulsion force
+       if(limitForce && (Fn<0.0) )
       {
           Fn = 0.0;
       }

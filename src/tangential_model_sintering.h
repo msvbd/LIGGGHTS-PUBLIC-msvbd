@@ -116,16 +116,21 @@ namespace ContactModels
       const double eny = sidata.en[1];
       const double enz = sidata.en[2];
       const double vrel = sqrt(sidata.vtr1*sidata.vtr1 + sidata.vtr2*sidata.vtr2 + sidata.vtr3*sidata.vtr3);
-
+      double D=1.0;  // ??
+      const double radi = sidata.radi;
+      const double radj = sidata.radj;
+      double reff= sidata.is_wall ? radi : (radi*radj/(radi+radj));
+     // double deltan=sidata.deltan
       // force normalization
-      const double Ft_friction = xmu * fabs(sidata.Fn);
-      double gamma = 0.0;
+  //    const double Ft_friction = xmu * fabs(sidata.Fn);
+      double a_s=sqrt(2*reff*sidata.deltan);// dopsano a_s   dopočítat
+      double gamma = (-0.01)*M_PI*pow(a_s,2)*pow(2*reff,2)/8.0/D;  //dopočítáno  reff i zde R* = reff ??
 
-      if (Ft_friction < sidata.gammat*vrel)
+      /*if (Ft_friction < sidata.gammat*vrel)
         gamma = Ft_friction/vrel;
       else
         gamma = sidata.gammat;
-
+*/
       // tangential force due to tangential velocity damping
 
       const double Ft1 = -gamma*sidata.vtr1;

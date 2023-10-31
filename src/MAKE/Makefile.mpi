@@ -74,8 +74,8 @@ JPG_LIB =
 # PATH = path for VTK library
 # LIB = name of VTK library
 
-VTK_INC =	-I/usr/include/vtk-6.2
-VTK_PATH =	#-L/usr/lib/x86_64-linux-gnu
+VTK_INC =	-I/usr/include/vtk-9.1
+VTK_PATH =	-L/usr/lib/x86_64-linux-gnu
 VTK_LIB =	-lvtkCommonCore-9.1 -lvtkIOCore-9.1 -lvtkIOXML-9.1 -lvtkIOLegacy-9.1 -lvtkCommonDataModel-9.1 -lvtkIOParallel-9.1 -lvtkParallelCore-9.1 -lvtkParallelMPI-9.1 -lvtkIOImage-9.1 -lvtkCommonExecutionModel-9.1 -lvtkFiltersCore-9.1 -lvtkIOParallelXML-9.1
 
 # ---------------------------------------------------------------------
