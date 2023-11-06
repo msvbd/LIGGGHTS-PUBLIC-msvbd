@@ -143,19 +143,19 @@ namespace ContactModels
       const double tor2 = (enz*Ft1 - enx*Ft3);
       const double tor3 = (enx*Ft2 - eny*Ft1);
 
-      #ifdef NONSPHERICAL_ACTIVE_FLAG
-          double torque_i[3];
-          if(sidata.is_non_spherical) {
-            double xci[3];
-            double Ft_i[3] = { Ft1,  Ft2,  Ft3 };
-            vectorSubtract3D(sidata.contact_point, atom->x[sidata.i], xci);
-            vectorCross3D(xci, Ft_i, torque_i);
-          } else {
-            torque_i[0] = -sidata.cri * tor1;
-            torque_i[1] = -sidata.cri * tor2;
-            torque_i[2] = -sidata.cri * tor3;
-          }
-      #endif
+      // #ifdef NONSPHERICAL_ACTIVE_FLAG
+      //     double torque_i[3];
+      //     if(sidata.is_non_spherical) {
+      //       double xci[3];
+      //       double Ft_i[3] = { Ft1,  Ft2,  Ft3 };
+      //       vectorSubtract3D(sidata.contact_point, atom->x[sidata.i], xci);
+      //       vectorCross3D(xci, Ft_i, torque_i);
+      //     } else {
+      //       torque_i[0] = -sidata.cri * tor1;
+      //       torque_i[1] = -sidata.cri * tor2;
+      //       torque_i[2] = -sidata.cri * tor3;
+      //     }
+      // #endif
       // return resulting forces
       if (!disable_when_bonded_ || sidata.contact_history[bond_history_offset_] < 0.5)
       {
