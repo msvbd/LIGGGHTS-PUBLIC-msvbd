@@ -79,6 +79,7 @@ class Atom : protected Pointers {
   int *tag,*type,*mask;
   tagint *image;
   double **x,**v,**f;
+  double *growRate, *radiusOrg;
 
   int *molecule;
   double *q,**mu;
@@ -173,6 +174,7 @@ class Atom : protected Pointers {
   int n_bondhist; 
   int radvary_flag; 
   int shapetype_flag; 
+  int growR_flag;
 
   // extra peratom info in restart file destined for fix & diag
 

@@ -108,6 +108,8 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   tag = type = mask = NULL;
   image = NULL;
   x = v = f = NULL;
+  growRate = NULL;
+  radiusOrg = NULL;
 
   molecule = NULL;
   q = NULL;
@@ -172,6 +174,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   superquadric_flag = 0;
   peri_flag = electron_flag = 0;
   wavepacket_flag = sph_flag = 0;
+  growR_flag = 0;
 
   molecule_flag = q_flag = mu_flag = 0;
   rmass_flag = radius_flag = omega_flag = torque_flag = angmom_flag = 0;
@@ -260,6 +263,8 @@ Atom::~Atom()
   memory->destroy(x);
   memory->destroy(v);
   memory->destroy(f);
+  memory->destroy(growRate);
+  memory->destroy(radiusOrg);
 
   memory->destroy(q);
   memory->destroy(mu);
@@ -388,6 +393,7 @@ void Atom::create_avec(const char *style, int narg, char **arg, char *suffix)
 
   sphere_flag = ellipsoid_flag = line_flag = tri_flag = 0;
   peri_flag = electron_flag = 0;
+  growR_flag = 0;
 
   molecule_flag = q_flag = mu_flag = 0;
   rmass_flag = radius_flag = omega_flag = torque_flag = angmom_flag = 0;
@@ -1735,6 +1741,8 @@ void *Atom::extract(const char *name,int &len)
   if (strcmp(name,"x") == 0) return (void *) x;
   if (strcmp(name,"v") == 0) return (void *) v;
   if (strcmp(name,"f") == 0) return (void *) f;
+  if (strcmp(name,"growRate") == 0) return (void *) growRate;
+  if (strcmp(name,"radiusOrg") == 0) return (void *) radiusOrg;
   if (strcmp(name,"molecule") == 0) return (void *) molecule;
   if (strcmp(name,"q") == 0) return (void *) q;
   if (strcmp(name,"mu") == 0) return (void *) mu;

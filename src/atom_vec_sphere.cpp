@@ -139,6 +139,8 @@ void AtomVecSphere::grow(int n)
   f = memory->grow(atom->f,nmax*comm->nthreads,3,"atom:f");
 
   radius = memory->grow(atom->radius,nmax,"atom:radius");
+  radiusOrg = memory->grow(atom->radiusOrg,nmax,"atom:radiusOrg");
+  growRate = memory->grow(atom->growRate,nmax,"atom:growRate");
   density = memory->grow(atom->density,nmax,"atom:density"); 
   rmass = memory->grow(atom->rmass,nmax,"atom:rmass");
   omega = memory->grow(atom->omega,nmax,3,"atom:omega");

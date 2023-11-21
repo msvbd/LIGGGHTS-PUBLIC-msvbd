@@ -77,7 +77,7 @@ FixNVESphereSintering::FixNVESphereSintering(LAMMPS *lmp, int narg, char **arg) 
   CAddRhoFluid_(0.0),
   onePlusCAddRhoFluid_(1.0)
 {
-  if (narg < 3) error->all(FLERR,"Illegal fix nve/sphere command");
+  if (narg < 3) error->all(FLERR,"Illegal fix nve/sphere/sintering command");
 
   time_integrate = 1;
 
@@ -85,10 +85,16 @@ FixNVESphereSintering::FixNVESphereSintering(LAMMPS *lmp, int narg, char **arg) 
 
   extra = NONE;
 
+  atom->growR_flag = 1;
+  
+  // copy values from atom->radius to atom->radiusOrg
+  for (int i = 0; i < atom->nlocal; i++)
+    atom->radiusOrg[i] = atom->radius[i];
+
   int iarg = 3;
   while (iarg < narg) {
     if (strcmp(arg[iarg],"update") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix nve/sphere command");
+      if (iarg+2 > narg) error->all(FLERR,"Illegal fix nve/sphere/sintering command");
       if (strcmp(arg[iarg+1],"dipole") == 0) extra = DIPOLE;
       else if (strcmp(arg[iarg+1],"CAddRhoFluid") == 0)
       {
@@ -101,9 +107,9 @@ FixNVESphereSintering::FixNVESphereSintering(LAMMPS *lmp, int narg, char **arg) 
             fprintf(screen,"cfd_coupling_force_implicit will consider added mass with CAddRhoFluid = %f\n",
                     CAddRhoFluid_);
       }
-      else error->all(FLERR,"Illegal fix nve/sphere command");
+      else error->all(FLERR,"Illegal fix nve/sphere/sintering command");
       iarg += 2;
-    } else error->all(FLERR,"Illegal fix nve/sphere command");
+    } else error->all(FLERR,"Illegal fix nve/sphere/sintering command");
   }
 
   // error checks
@@ -146,7 +152,9 @@ void FixNVESphereSintering::initial_integrate(int vflag)
   double **omega = atom->omega;
   double **torque = atom->torque;
   double *radius = atom->radius;
+  double *radiusOrg = atom->radiusOrg;
   double *rmass = atom->rmass;
+  double *growRate = atom->growRate;
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
   if (igroup == atom->firstgroup) nlocal = atom->nfirst;
@@ -179,6 +187,11 @@ void FixNVESphereSintering::initial_integrate(int vflag)
       omega[i][0] += dtirotate * torque[i][0];
       omega[i][1] += dtirotate * torque[i][1];
       omega[i][2] += dtirotate * torque[i][2];
+
+      // r grow
+      fprintf(screen,"growRate[%d] = %f\n",i,growRate[i]);
+      radius[i] = radiusOrg[i] + growRate[i];
+
     }
   }
 

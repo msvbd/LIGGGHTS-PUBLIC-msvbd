@@ -194,6 +194,7 @@ public:
     double **x = atom->x;
     double **v = atom->v;
     double **f = atom->f;
+    double *growRate = atom->growRate;
     double **omega = atom->omega;
     double **torque = atom->torque;
     double *radius = atom->radius;
@@ -251,6 +252,17 @@ public:
     cmodel.beginPass(sidata, i_forces, j_forces);
 
     // loop over neighbors of my atoms
+
+
+    // if growR_flag is set, zero the growRate array
+    if(atom->growR_flag) {
+      // print log to screen
+      // fprintf(screen, "growR_flag is set in pair_gran_base.h > compute_force 1\n");
+
+      for (int i = 0; i < nlocal; i++) {
+        growRate[i] = 0.0;
+      }
+    }
 
     for (int ii = 0; ii < inum; ii++) {
       const int i = ilist[ii];
@@ -417,6 +429,22 @@ public:
           cmodel.surfacesClose(sidata, i_forces, j_forces);
         } else
           sidata.has_force_update = false;
+
+        // sintering
+        if(atom->growR_flag) {
+          double d = sidata.deltan;
+          double r = radsum - d;
+          if (d > radsum) error->all(FLERR, "d > radsum");
+
+          // overlap volume of two speres for d < radsum
+          double overlap = M_PI / 12.0 / d * pow(r, 2.0) * (d*d + 2.0*d*radsum - 3.0*pow(radi-radj, 2.0));
+
+          growRate[i] += overlap * 0.5;
+          growRate[j] += overlap * 0.5;
+
+          // fprintf(screen, "growRate[i] = %f\n", growRate[i]);
+          // fprintf(screen, "growRate[j] = %f\n", growRate[j]);
+        }
 
         if(sidata.has_force_update) {
           if (sidata.computeflag) {
