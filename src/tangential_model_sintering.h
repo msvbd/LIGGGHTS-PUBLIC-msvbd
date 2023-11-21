@@ -116,15 +116,17 @@ namespace ContactModels
       const double eny = sidata.en[1];
       const double enz = sidata.en[2];
       const double vrel = sqrt(sidata.vtr1*sidata.vtr1 + sidata.vtr2*sidata.vtr2 + sidata.vtr3*sidata.vtr3);
-      double D=1.0;  // ??
       const double radi = sidata.radi;
       const double radj = sidata.radj;
       double reff= sidata.is_wall ? radi : (radi*radj/(radi+radj));
+
+      const double difusionParam = 1.0; // diffusion parameter
+      const double viscouseParam = 1.0; // viscouse parameter
+      const double a_s = 4.0*reff*sidata.deltan;   // a_s dopočítáno
      // double deltan=sidata.deltan
       // force normalization
   //    const double Ft_friction = xmu * fabs(sidata.Fn);
-      double a_s=sqrt(2*reff*sidata.deltan);// dopsano a_s   dopočítat
-      double gamma = (-0.01)*M_PI*pow(a_s,2)*pow(2*reff,2)/8.0/D;  //dopočítáno  reff i zde R* = reff ??
+      double gamma = viscouseParam * M_PI * a_s * pow(2*reff,2)/8.0/difusionParam;
 
       /*if (Ft_friction < sidata.gammat*vrel)
         gamma = Ft_friction/vrel;

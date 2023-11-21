@@ -227,7 +227,7 @@ namespace ContactModels
       if (disable_when_bonded_ && update_history && sidata.deltan < sidata.contact_history[overlap_offset_])
         sidata.contact_history[overlap_offset_] = sidata.deltan;
       const double deltan = disable_when_bonded_ ? fmax(sidata.deltan-sidata.contact_history[overlap_offset_], 0.0) : sidata.deltan;
-      double a_s = sqrt(2*reff*deltan);   // a_s dopočítáno
+      double a_s = 4.0*reff*deltan;   // a_s dopočítáno
       const double Sn=2.*Yeff[itype][jtype]*sqrtval;
       const double St=8.*Geff[itype][jtype]*sqrtval;
 
@@ -236,6 +236,8 @@ namespace ContactModels
       const double sqrtFiveOverSix = 0.91287092917527685576161630466800355658790782499663875;
       const double gamman=-2.*sqrtFiveOverSix*betaeff[itype][jtype]*sqrt(Sn*meff);
       const double gammat= tangential_damping ? -2.*sqrtFiveOverSix*betaeff[itype][jtype]*sqrt(St*meff) : 0.0;
+      const double surfaceEnergy = 1.0;
+      const double difusionParam = 1.0;
       
       if(!displayedSettings)
       {
@@ -250,9 +252,9 @@ namespace ContactModels
       kn /= force->nktv2p;
       kt /= force->nktv2p;
 
-      const double Fn_damping = -gamman*sidata.vn;
-      const double Fn_contact = kn*deltan;
-       double Fn =(1.125 *2*M_PI*radj*gamman)-(sidata.vn * M_PI* pow(a_s,4) / 8 / reff);
+      const double Fn_sintering = sidata.vn * 1.125 *2*M_PI*reff*surfaceEnergy;
+      const double Fn_viscous = sidata.vn * M_PI* pow(a_s,2) / 8 / difusionParam;
+       double Fn = Fn_sintering - Fn_viscous;
 
        //limit force to avoid the artefact of negative repulsion force
        if(limitForce && (Fn<0.0) )
@@ -284,7 +286,7 @@ namespace ContactModels
         if(heating)
         {
             const double mj = sidata.is_wall ? sidata.mi : sidata.mj;
-            const double E_therm = fabs((-sidata.vn - update->dt*Fn*0.5*(1.0/sidata.mi + 1.0/mj))*Fn_damping);
+            const double E_therm = fabs((-sidata.vn - update->dt*Fn*0.5*(1.0/sidata.mi + 1.0/mj))*Fn_viscous);
             sidata.P_diss += E_therm; 
             if(heating_track && sidata.is_wall)
                 cmb->tally_pw(E_therm ,sidata.i,jtype,0);
@@ -313,13 +315,13 @@ namespace ContactModels
                                           delta[2]*elastic_energy[3])*0.5
                                          // from previous half step
                                          + elastic_energy[10];
-                    elastic_energy[10] = -(delta[0]*Fn_contact*sidata.en[0] +
-                                           delta[1]*Fn_contact*sidata.en[1] +
-                                           delta[2]*Fn_contact*sidata.en[2])*0.5;
+                    elastic_energy[10] = -(delta[0]*Fn_sintering*sidata.en[0] +
+                                           delta[1]*Fn_sintering*sidata.en[1] +
+                                           delta[2]*Fn_sintering*sidata.en[2])*0.5;
                 }
-                elastic_energy[1] = -Fn_contact*sidata.en[0];
-                elastic_energy[2] = -Fn_contact*sidata.en[1];
-                elastic_energy[3] = -Fn_contact*sidata.en[2];
+                elastic_energy[1] = -Fn_sintering*sidata.en[0];
+                elastic_energy[2] = -Fn_sintering*sidata.en[1];
+                elastic_energy[3] = -Fn_sintering*sidata.en[2];
                 elastic_energy[4] = 0.0;
                 elastic_energy[5] = 0.0;
                 elastic_energy[6] = 0.0;
@@ -333,7 +335,7 @@ namespace ContactModels
                 double * const * const dissipated = fix_dissipated_->array_atom;
                 double * const dissipated_i = dissipated[sidata.i];
                 double * const dissipated_j = dissipated[sidata.j];
-                const double F_diss = -Fn_damping;
+                const double F_diss = -Fn_viscous;
                 dissipated_i[1] += sidata.en[0]*F_diss;
                 dissipated_i[2] += sidata.en[1]*F_diss;
                 dissipated_i[3] += sidata.en[2]*F_diss;
