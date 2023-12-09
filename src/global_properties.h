@@ -91,6 +91,10 @@ namespace MODEL_PARAMS
     MatrixProperty* createCoeffStc(PropertyRegistry & registry, const char * caller, bool sanity_checks);
     ScalarProperty* createRollingStiffness(PropertyRegistry & registry, const char * caller, bool sanity_checks);
 
+    // sintering
+    ScalarProperty* createSurfaceEnergySint(PropertyRegistry & registry, const char * caller, bool sanity_checks);
+    ScalarProperty* createDiffusionParameter(PropertyRegistry & registry, const char * caller, bool sanity_checks);
+
     ScalarProperty* createLiquidVolume(PropertyRegistry & registry, const char * caller, bool sanity_checks);
     ScalarProperty* createLiquidDensity(PropertyRegistry & registry, const char * caller, bool sanity_checks);
     ScalarProperty* createSurfaceTension(PropertyRegistry & registry, const char * caller, bool sanity_checks);

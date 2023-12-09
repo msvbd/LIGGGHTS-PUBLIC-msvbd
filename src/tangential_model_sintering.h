@@ -64,7 +64,7 @@ namespace ContactModels
 
     TangentialModel(LAMMPS * lmp, IContactHistorySetup *hsetup, class ContactModelBase *cmb) :
       TangentialModelBase(lmp, hsetup, cmb),
-      coeffFrict(NULL),
+      difusionParam(1.0),
       disable_when_bonded_(false),
       bond_history_offset_(-1),
       dissipation_history_offset_(-1),
@@ -105,13 +105,15 @@ namespace ContactModels
     }
 
     inline void connectToProperties(PropertyRegistry & registry){
-      registry.registerProperty("coeffFrict", &MODEL_PARAMS::createCoeffFrict);
-      registry.connect("coeffFrict", coeffFrict,"tangential_model history");
+      registry.registerProperty("diffusionParameter", &MODEL_PARAMS::createDiffusionParameter,"tangetial model sintering");
+
+      registry.connect("diffusionParameter", difusionParam,"tangetial model sintering");
     }
 
     inline void surfacesIntersect(const SurfacesIntersectData & sidata, ForceData & i_forces, ForceData & j_forces) {
       if(sidata.contact_flags) *sidata.contact_flags |= CONTACT_TANGENTIAL_MODEL;
-      const double xmu = coeffFrict[sidata.itype][sidata.jtype];
+
+      const int itype = sidata.itype;
       const double enx = sidata.en[0];
       const double eny = sidata.en[1];
       const double enz = sidata.en[2];
@@ -120,19 +122,12 @@ namespace ContactModels
       const double radj = sidata.radj;
       double reff= sidata.is_wall ? radi : (radi*radj/(radi+radj));
 
-      const double difusionParam = 1.0; // diffusion parameter
-      const double viscouseParam = 1.0; // viscouse parameter
+      const double viscouseParam = 0.01; // viscouse parameter
       const double a_s = 4.0*reff*sidata.deltan;   // a_s dopočítáno
-     // double deltan=sidata.deltan
-      // force normalization
-  //    const double Ft_friction = xmu * fabs(sidata.Fn);
-      double gamma = viscouseParam * M_PI * a_s * pow(2*reff,2)/8.0/difusionParam;
 
-      /*if (Ft_friction < sidata.gammat*vrel)
-        gamma = Ft_friction/vrel;
-      else
-        gamma = sidata.gammat;
-*/
+      // force normalization
+      double gamma = viscouseParam * M_PI *a_s* pow(2*reff,2)/8.0/difusionParam;
+
       // tangential force due to tangential velocity damping
 
       const double Ft1 = -gamma*sidata.vtr1;
@@ -145,19 +140,6 @@ namespace ContactModels
       const double tor2 = (enz*Ft1 - enx*Ft3);
       const double tor3 = (enx*Ft2 - eny*Ft1);
 
-      // #ifdef NONSPHERICAL_ACTIVE_FLAG
-      //     double torque_i[3];
-      //     if(sidata.is_non_spherical) {
-      //       double xci[3];
-      //       double Ft_i[3] = { Ft1,  Ft2,  Ft3 };
-      //       vectorSubtract3D(sidata.contact_point, atom->x[sidata.i], xci);
-      //       vectorCross3D(xci, Ft_i, torque_i);
-      //     } else {
-      //       torque_i[0] = -sidata.cri * tor1;
-      //       torque_i[1] = -sidata.cri * tor2;
-      //       torque_i[2] = -sidata.cri * tor3;
-      //     }
-      // #endif
       // return resulting forces
       if (!disable_when_bonded_ || sidata.contact_history[bond_history_offset_] < 0.5)
       {
@@ -197,15 +179,11 @@ namespace ContactModels
           i_forces.delta_F[0] += Ft1 * area_ratio;
           i_forces.delta_F[1] += Ft2 * area_ratio;
           i_forces.delta_F[2] += Ft3 * area_ratio;
-          #ifdef NONSPHERICAL_ACTIVE_FLAG
-                  i_forces.delta_torque[0] += torque_i[0] * area_ratio;
-                  i_forces.delta_torque[1] += torque_i[1] * area_ratio;
-                  i_forces.delta_torque[2] += torque_i[2] * area_ratio;
-          #else
-                  i_forces.delta_torque[0] += -sidata.cri * tor1 * area_ratio;
-                  i_forces.delta_torque[1] += -sidata.cri * tor2 * area_ratio;
-                  i_forces.delta_torque[2] += -sidata.cri * tor3 * area_ratio;
-          #endif
+
+          i_forces.delta_torque[0] += -sidata.cri * tor1 * area_ratio;
+          i_forces.delta_torque[1] += -sidata.cri * tor2 * area_ratio;
+          i_forces.delta_torque[2] += -sidata.cri * tor3 * area_ratio;
+     
         } else {
           i_forces.delta_F[0] += Ft1;
           i_forces.delta_F[1] += Ft2;
@@ -213,34 +191,14 @@ namespace ContactModels
           j_forces.delta_F[0] -= Ft1;
           j_forces.delta_F[1] -= Ft2;
           j_forces.delta_F[2] -= Ft3;
-          #ifdef NONSPHERICAL_ACTIVE_FLAG
-                  double torque_j[3];
-                  if(sidata.is_non_spherical) {
-                    double xcj[3];
-                    vectorSubtract3D(sidata.contact_point, atom->x[sidata.j], xcj);
-                    double Ft_j[3] = { -Ft1,  -Ft2,  -Ft3 };
-                    vectorCross3D(xcj, Ft_j, torque_j);
-                  } else {
-                    torque_j[0] = -sidata.crj * tor1;
-                    torque_j[1] = -sidata.crj * tor2;
-                    torque_j[2] = -sidata.crj * tor3;
-                  }
-                  i_forces.delta_torque[0] += torque_i[0];
-                  i_forces.delta_torque[1] += torque_i[1];
-                  i_forces.delta_torque[2] += torque_i[2];
+         
+          i_forces.delta_torque[0] += -sidata.cri * tor1;
+          i_forces.delta_torque[1] += -sidata.cri * tor2;
+          i_forces.delta_torque[2] += -sidata.cri * tor3;
 
-                  j_forces.delta_torque[0] += torque_j[0];
-                  j_forces.delta_torque[1] += torque_j[1];
-                  j_forces.delta_torque[2] += torque_j[2];
-          #else
-                  i_forces.delta_torque[0] += -sidata.cri * tor1;
-                  i_forces.delta_torque[1] += -sidata.cri * tor2;
-                  i_forces.delta_torque[2] += -sidata.cri * tor3;
-
-                  j_forces.delta_torque[0] += -sidata.crj * tor1;
-                  j_forces.delta_torque[1] += -sidata.crj * tor2;
-                  j_forces.delta_torque[2] += -sidata.crj * tor3;
-          #endif
+          j_forces.delta_torque[0] += -sidata.crj * tor1;
+          j_forces.delta_torque[1] += -sidata.crj * tor2;
+          j_forces.delta_torque[2] += -sidata.crj * tor3;
         }
       }
     }
@@ -254,7 +212,7 @@ namespace ContactModels
     }
 
   private:
-    double ** coeffFrict;
+    double difusionParam;
     bool disable_when_bonded_;
     int bond_history_offset_;
     int dissipation_history_offset_;

@@ -78,6 +78,10 @@ namespace MODEL_PARAMS
   static const char * LIQUID_DENSITY = "liquidDensity";
   static const char * HISTORY_INDEX = "historyIndex";
   static const char * SURFACE_TENSION = "surfaceTension";
+
+  static const char * SURFACE_ENERGY_SINT = "surfaceEnergySint";
+  static const char * DIFFUSION_PARAMETER = "diffusionParameter";
+
   static const char * SWITCH_MODEL = "switchModel";
   static const char * CONTACT_ANGLE = "contactAngle";
   static const char * COEFFICIENT_MAX_ELASTIC_STIFFNESS = "coefficientMaxElasticStiffness";
@@ -687,6 +691,18 @@ namespace MODEL_PARAMS
   ScalarProperty* createSurfaceTension(PropertyRegistry & registry, const char * caller, bool)
   {
     return createScalarProperty(registry, SURFACE_TENSION, caller);
+  }
+  /* ---------------------------------------------------------------------- */
+
+  ScalarProperty* createSurfaceEnergySint(PropertyRegistry & registry, const char * caller, bool)
+  {
+    return createScalarProperty(registry, SURFACE_ENERGY_SINT, caller);
+  }
+  /* ---------------------------------------------------------------------- */
+
+  ScalarProperty* createDiffusionParameter(PropertyRegistry & registry, const char * caller, bool)
+  {
+    return createScalarProperty(registry, DIFFUSION_PARAMETER, caller);
   }
 
   /* ---------------------------------------------------------------------- */
